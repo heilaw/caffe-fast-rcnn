@@ -69,9 +69,15 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << top[0]->width();
   // label
   if (this->output_labels_) {
-    vector<int> label_shape(1, this->layer_param_.data_param().batch_size());
+      CHECK_GT(datum.label_size() , 0) << "Datume should contain labels for top";
+      vector<int> label_shape(4, 1);
+      label_shape[0] = this -> layer_param_.data_param().batch_size();
+      label_shape[1] = datum.label_size();
     top[1]->Reshape(label_shape);
     this->prefetch_label_.Reshape(label_shape);
+    LOG(INFO) << "output label size: " << top[1] -> num() << ","
+        << top[1] -> channels() << "," << top[1] -> height() << ","
+        << top[1] -> width();
   }
 }
 
@@ -85,6 +91,8 @@ void DataLayer<Dtype>::InternalThreadEntry() {
   CPUTimer timer;
   CHECK(this->prefetch_data_.count());
   CHECK(this->transformed_data_.count());
+
+  int num_labels = 0;
 
   // Reshape on single input batches for inputs of varying dimension.
   const int batch_size = this->layer_param_.data_param().batch_size();
@@ -110,7 +118,8 @@ void DataLayer<Dtype>::InternalThreadEntry() {
   Dtype* top_label = NULL;  // suppress warnings about uninitialized variables
 
   if (this->output_labels_) {
-    top_label = this->prefetch_label_.mutable_cpu_data();
+    top_label = this -> prefetch_label_.mutable_cpu_data();
+    num_labels = this -> prefetch_label_.channels();
   }
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     timer.Start();
@@ -144,7 +153,9 @@ void DataLayer<Dtype>::InternalThreadEntry() {
       this->data_transformer_->Transform(datum, &(this->transformed_data_));
     }
     if (this->output_labels_) {
-      top_label[item_id] = datum.label();
+        for(int l = 0; l < num_labels; ++l) {
+            top_label[item_id * num_labels + l] = datum.label(l);
+        }
     }
     trans_time += timer.MicroSeconds();
     // go to the next iter
