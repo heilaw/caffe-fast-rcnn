@@ -434,7 +434,6 @@ message ConvolutionParameter {
 }
 
 message SigmoidCrossEntropyLossParameter {
-    optional bool use_weight = 1 [default = false];
 }
 
 // Message that stores parameters used by DataLayer

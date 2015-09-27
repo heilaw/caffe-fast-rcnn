@@ -49,34 +49,6 @@ void SigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     const Dtype loss_weight = top[0]->cpu_diff()[0];
     caffe_gpu_scal(count, loss_weight / num, bottom_diff);
     CUDA_POST_KERNEL_CHECK;
-
-    bool USEWEIGHT = this -> layer_param_.sig_param().use_weight();
-
-    const Dtype* target = bottom[1] -> cpu_data();
-    if (USEWEIGHT) {
-      Dtype weight_array[count];
-      memset(weight_array, 0, sizeof(weight_array));
-      
-      Dtype *d_weight_array;
-      cudaMalloc((void **)&d_weight_array, sizeof(weight_array));
-
-      int pos_targetnum = 0;
-      int neg_targetnum = 0;
-
-      for (int i = 0; i < count; ++i) {
-        if (target[i] == 1) ++pos_targetnum;
-        else ++neg_targetnum;
-      }
-
-      for (int i = 0; i < count; ++i) {
-        if (target[i] == 1) weight_array[i] = 0.5 * num / pos_targetnum;
-        else weight_array[i] = 0.5 * num / neg_targetnum;
-      }
-
-      cudaMemcpy(d_weight_array, weight_array, sizeof(weight_array), cudaMemcpyHostToDevice);
-      caffe_gpu_mul(count, bottom_diff, d_weight_array, bottom_diff);
-      CUDA_POST_KERNEL_CHECK;
-    }
   }
 }
 
